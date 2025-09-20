@@ -1,0 +1,70 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "sqlite"; url = env("DATABASE_URL") }
+
+enum Role { ADMIN BROKER }
+enum Currency { USD UF }
+enum UnitStatus { AVAILABLE RESERVED_PENDING RESERVED_CONFIRMED SOLD }
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(BROKER)
+  quotes       Quote[]
+  createdAt    DateTime @default(now())
+}
+
+model Project {
+  id           String   @id @default(cuid())
+  name         String
+  coverUrl     String?
+  address      String
+  city         String
+  country      String
+  deliveryDate DateTime
+  units        Unit[]
+  createdAt    DateTime @default(now())
+}
+
+model Unit {
+  id        String      @id @default(cuid())
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  code      String
+  typology  String
+  m2        Int
+  bedrooms  Int
+  bathrooms Int
+  price     Int
+  currency  Currency
+  status    UnitStatus  @default(AVAILABLE)
+  quotes    Quote[]
+  createdAt DateTime    @default(now())
+}
+
+model Quote {
+  id                    String   @id @default(cuid())
+  unit                  Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitId                String
+  broker                User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+  brokerId              String
+  downPaymentPct        Int
+  installments          Int
+  calculatedDownPayment Int
+  installmentValue      Int
+  pdfUrl                String?
+  receipt               Receipt?
+  createdAt             DateTime @default(now())
+}
+
+model Receipt {
+  id         String   @id @default(cuid())
+  quote      Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quoteId    String   @unique
+  fileName   String
+  mimeType   String
+  contentB64 String
+  note       String?
+  createdAt  DateTime @default(now())
+}
