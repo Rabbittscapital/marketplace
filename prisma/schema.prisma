@@ -7,29 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  BROKER
-}
-
-enum Currency {
-  USD
-  UF
-}
-
-enum UnitStatus {
-  AVAILABLE
-  RESERVED_PENDING
-  RESERVED_CONFIRMED
-  SOLD
-}
+/*
+  NOTA: SQLite no soporta enums nativos, así que usamos String con defaults.
+  Valores esperados:
+  - role: "ADMIN" | "BROKER"
+  - currency: "USD" | "UF"
+  - status: "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
+*/
 
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
-  role         Role     @default(BROKER)
+  role         String   @default("BROKER")
   quotes       Quote[]
   createdAt    DateTime @default(now())
 }
@@ -47,8 +38,8 @@ model Project {
 }
 
 model Unit {
-  id        String      @id @default(cuid())
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
   code      String
   typology  String
@@ -56,10 +47,10 @@ model Unit {
   bedrooms  Int
   bathrooms Int
   price     Int
-  currency  Currency
-  status    UnitStatus  @default(AVAILABLE)
+  currency  String   // "USD" | "UF"
+  status    String   @default("AVAILABLE")
   quotes    Quote[]
-  createdAt DateTime    @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Quote {
