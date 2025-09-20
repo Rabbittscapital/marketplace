@@ -1,13 +1,16 @@
-import type { AuthOptions } from "next-auth";
+import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import { compare } from "bcryptjs";
 
-export const authOptions: AuthOptions = {
+export const authOptions: NextAuthConfig = {
   providers: [
     Credentials({
       name: "Email & Password",
-      credentials: { email: { label: "Email" }, password: { label: "Password", type: "password" } },
+      credentials: {
+        email: { label: "Email" },
+        password: { label: "Password", type: "password" }
+      },
       async authorize(creds) {
         const email = (creds?.email || "").toString().toLowerCase();
         const pass = (creds?.password || "").toString();
@@ -22,8 +25,14 @@ export const authOptions: AuthOptions = {
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, user }) { if (user) (token as any).role = (user as any).role; return token; },
-    async session({ session, token }) { (session as any).role = (token as any).role; return session; }
+    async jwt({ token, user }) {
+      if (user) (token as any).role = (user as any).role;
+      return token;
+    },
+    async session({ session, token }) {
+      (session as any).role = (token as any).role;
+      return session;
+    }
   },
   secret: process.env.NEXTAUTH_SECRET
 };
