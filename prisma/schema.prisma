@@ -7,20 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/*
-  NOTA: SQLite no soporta enums nativos, así que usamos String con defaults.
-  Valores esperados:
-  - role: "ADMIN" | "BROKER"
-  - currency: "USD" | "UF"
-  - status: "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
-*/
-
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
-  role         String   @default("BROKER")
+  role         String   @default("BROKER")   // "ADMIN" | "BROKER"
   quotes       Quote[]
   createdAt    DateTime @default(now())
 }
@@ -47,8 +39,8 @@ model Unit {
   bedrooms  Int
   bathrooms Int
   price     Int
-  currency  String   // "USD" | "UF"
-  status    String   @default("AVAILABLE")
+  currency  String                      // "USD" | "UF"
+  status    String   @default("AVAILABLE")  // "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
   quotes    Quote[]
   createdAt DateTime @default(now())
 }
