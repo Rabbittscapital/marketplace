@@ -1,9 +1,28 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "sqlite"; url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum Role { ADMIN BROKER }
-enum Currency { USD UF }
-enum UnitStatus { AVAILABLE RESERVED_PENDING RESERVED_CONFIRMED SOLD }
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  BROKER
+}
+
+enum Currency {
+  USD
+  UF
+}
+
+enum UnitStatus {
+  AVAILABLE
+  RESERVED_PENDING
+  RESERVED_CONFIRMED
+  SOLD
+}
 
 model User {
   id           String   @id @default(cuid())
