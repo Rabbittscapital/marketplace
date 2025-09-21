@@ -1,36 +1,32 @@
+// app/api/quotes/mine/route.ts
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(req: Request) {
-  const data = await req.formData();
-
-  const unitId        = (data.get("unitId") as string) || "";
-  const rawClientId   = (data.get("clientId") as string) || "";
-  const clientIdManual= (data.get("clientIdManual") as string) || "";
-  const clientId      = rawClientId || clientIdManual;
-  const brokerId      = (data.get("brokerId") as string) || "";
-  const downPaymentPct= Number(data.get("downPaymentPct") || 20);
-  const installments  = Number(data.get("installments") || 120);
-
-  if (!unitId || !clientId || !brokerId) {
-    return NextResponse.json({ ok:false, error:"missing_fields" }, { status:400 });
-  }
-
-  const unit = await prisma.unit.findUnique({ where: { id: unitId } });
-  if (!unit) return NextResponse.json({ ok:false, error:"unit_not_found" }, { status:404 });
-
-  const calculatedDownPayment = Math.round(unit.price * (downPaymentPct/100));
-
-  const quote = await prisma.quote.create({
-    data: {
-      unitId,
-      clientId,
-      brokerId,
-      downPaymentPct,
-      installments,
-      calculatedDownPayment
+export async function GET() {
+  try {
+    // 1) Autenticación
+    const session = await getServerSession(authOptions);
+    const brokerId = session?.user?.id;
+    if (!brokerId) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
-  });
 
-  return NextResponse.redirect(new URL(`/proyectos`, req.url), 302);
+    // 2) Traer cotizaciones del broker logueado
+    const quotes = await prisma.quote.findMany({
+      where: { brokerId },
+      include: {
+        client: true,
+        unit: { include: { project: true } },
+        // receipt: true, // <- NO EXISTE en tu schema actual. Si algún día agregas la relación, re-actívalo.
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ ok: true, quotes });
+  } catch (err) {
+    console.error("[quotes.mine] error:", err);
+    return NextResponse.json({ error: "server_error" }, { status: 500 });
+  }
 }
