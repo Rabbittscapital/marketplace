@@ -1,78 +1,115 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // Debe comenzar con postgres:// o postgresql://
 }
 
-// NOTA: usamos cadenas en lugar de enums nativos para máxima compatibilidad.
-// Si alguna vez quieres usar enums nativos, hazlo solo con Postgres/MySQL.
+/*
+ Mantengo strings en vez de enums para simplificar despliegues y cambios.
+ Valores esperados en la app:
+ - User.role:        "ADMIN" | "BROKER"
+ - Project.currency: "USD" | "UF"
+ - Unit.status:      "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
+*/
 
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  password  String
-  role      String   @default("broker")  // "admin" | "broker"
-  clients   Client[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  quotes  Quote[] @relation("BrokerQuotes")
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         String   @default("BROKER")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relaciones
+  clients      Client[]
+  quotes       Quote[]  @relation("BrokerQuotes")
+
+  @@index([role])
 }
 
 model Client {
   id        String   @id @default(cuid())
   firstName String
   lastName  String
-  email     String
-  phone     String
+  email     String?
+  phone     String?
+
+  // Dueño del cliente (vendedor/broker)
   brokerId  String
-  broker    User     @relation(fields: [brokerId], references: [id])
-  quotes    Quote[]
+  broker    User     @relation(fields: [brokerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  quotes    Quote[]
+
+  @@index([brokerId])
+  @@index([email])
 }
 
 model Project {
   id        String   @id @default(cuid())
   name      String
-  currency  String   // "UF" o "USD"
-  units     Unit[]
+  currency  String   // "USD" | "UF"
+  address   String?
+  city      String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  units     Unit[]
+
+  @@index([currency])
 }
 
 model Unit {
-  id        String   @id @default(cuid())
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
-  number    String
-  typology  String
-  price     Float
-  available Boolean  @default(true)
-  quotes    Quote[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  number     String   @unique
+  typology   String
+  price      Int
+  available  Boolean  @default(true)
+  status     String   @default("AVAILABLE") // usado en validaciones
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  quotes     Quote[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([available])
 }
 
 model Quote {
   id               String   @id @default(cuid())
+
   unitId           String
+  unit             Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
   clientId         String
-  brokerId         String   // QUIÉN creó la cotización (User)
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Broker (vendedor que creó la cotización)
+  brokerId         String
+  broker           User     @relation("BrokerQuotes", fields: [brokerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Datos de la cotización
   downPaymentPct   Int
   installments     Int
   installmentValue Int
   totalPrice       Int
-  currency         String
-  createdAt        DateTime @default(now())
+  currency         String   // viene del proyecto de la unidad al momento de crear
 
-  // Relaciones
-  unit    Unit   @relation(fields: [unitId], references: [id])
-  client  Client @relation(fields: [clientId], references: [id])
-  broker  User   @relation("BrokerQuotes", fields: [brokerId], references: [id])
+  createdAt        DateTime @default(now())
 
   @@index([brokerId])
   @@index([clientId])
