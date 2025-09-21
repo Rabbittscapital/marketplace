@@ -1,4 +1,3 @@
-// app/api/quotes/mine/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -13,13 +12,18 @@ export async function GET() {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    // 2) Traer cotizaciones del broker logueado
+    // 2) Cotizaciones del broker logueado
     const quotes = await prisma.quote.findMany({
       where: { brokerId },
       include: {
         client: true,
-        unit: { include: { project: true } },
-        // receipt: true, // <- NO EXISTE en tu schema actual. Si algún día agregas la relación, re-actívalo.
+        unit: {
+          include: {
+            project: true, // para leer currency desde unit.project.currency
+          },
+        },
+        // ⛔ OJO: NO pongas receipt aquí porque no existe en tu schema actual.
+        // Si más adelante agregas un modelo/relación Receipt, recién ahí lo activamos.
       },
       orderBy: { createdAt: "desc" },
     });
