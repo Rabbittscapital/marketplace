@@ -2,7 +2,7 @@
 import type { NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
-import { compare } from "bcryptjs";
+import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -19,37 +19,38 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
-        if (!user || !user.passwordHash) return null;
+        if (!user) return null;
 
-        const ok = await compare(credentials.password, user.passwordHash);
+        const ok = await bcrypt.compare(credentials.password, user.password);
         if (!ok) return null;
 
-        // Lo que retorne authorize se serializa a `user` en el callback jwt
         return {
           id: user.id,
-          name: user.name ?? null,
-          email: user.email ?? null,
-          role: user.role ?? null,
-          image: user.image ?? null,
-        };
+          name: user.name ?? user.email,
+          email: user.email,
+          image: user.image ?? undefined,
+          role: user.role ?? "BROKER",
+        } as any;
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Cuando hay login, `user` viene del authorize()
       if (user) {
         token.id = (user as any).id;
-        token.role = (user as any).role ?? null;
+        token.role = (user as any).role ?? "BROKER";
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = (token.id as string) ?? "";
-        (session.user as any).role = (token.role as string) ?? null;
+        (session.user as any).id = token.id as string;
+        (session.user as any).role = (token.role as string) ?? "BROKER";
       }
       return session;
     },
+  },
+  pages: {
+    signIn: "/login",
   },
 };
