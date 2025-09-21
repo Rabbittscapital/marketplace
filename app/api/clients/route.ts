@@ -4,63 +4,61 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/clients  -> lista
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  const brokerId = session?.user?.id;
-  if (!brokerId) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
+export const dynamic = 'force-dynamic';
 
-  const clients = await prisma.client.findMany({
-    where: {
-      // brokerId,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  return NextResponse.json(clients);
-}
-
-// POST /api/clients -> crea
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const brokerId = session?.user?.id;
-  if (!brokerId) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    const brokerId = session?.user?.id ?? null;
+    if (!brokerId) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    // Aceptamos { name, email, phone } o un solo string "name"
+    let name = (body?.name ?? body?.firstName ?? '').toString().trim(); // por si tu form aún manda firstName
+    const emailRaw = (body?.email ?? null) as string | null;
+    const phoneRaw = (body?.phone ?? null) as string | null;
+
+    if (!name && !emailRaw && !phoneRaw) {
+      return NextResponse.json(
+        { error: 'missing_fields', detail: 'Envíe name, email o phone' },
+        { status: 400 }
+      );
+    }
+    if (!name) name = 'Sin nombre';
+
+    // Si viene email, intentamos encontrar uno existente (para no romper unique)
+    let existing = null as null | { id: string };
+    if (emailRaw) {
+      existing = await prisma.client.findFirst({
+        where: { email: emailRaw },
+        select: { id: true },
+      });
+    }
+
+    const client = existing
+      ? await prisma.client.update({
+          where: { id: existing.id },
+          data: {
+            // actualizamos datos útiles y asociamos broker si no tenía
+            name,
+            phone: phoneRaw ?? undefined,
+            brokerId, // si ya tenía otro broker, puedes quitar esta línea
+          },
+        })
+      : await prisma.client.create({
+          data: {
+            name,
+            email: emailRaw,
+            phone: phoneRaw,
+            brokerId,
+          },
+        });
+
+    return NextResponse.json(client, { status: 201 });
+  } catch (e) {
+    console.error('clients:POST error', e);
+    return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
-
-  const body = await req.json().catch(() => ({}));
-  const rawName: string | undefined = body.name?.trim();
-  const firstNameFromBody: string | undefined = body.firstName?.trim();
-  const lastNameFromBody: string | undefined = body.lastName?.trim();
-  const emailRaw: string | undefined = body.email?.trim() || undefined;
-  const phoneRaw: string | undefined = body.phone?.trim() || undefined;
-
-  // Resolver firstName/lastName desde name si vino junto
-  let firstName = firstNameFromBody;
-  let lastName = lastNameFromBody;
-
-  if (!firstName && rawName) {
-    const parts = rawName.split(/\s+/);
-    firstName = parts.shift() || rawName;
-    lastName = parts.length ? parts.join(' ') : '';
-  }
-
-  if (!firstName) {
-    return NextResponse.json({ error: 'firstName_required' }, { status: 400 });
-  }
-
-  const client = await prisma.client.create({
-    data: {
-      firstName,
-      lastName: lastName || null,
-      email: emailRaw || null,
-      phone: phoneRaw || null,
-      // si tu modelo tiene brokerId y quieres asociar:
-      // brokerId,
-    },
-  });
-
-  return NextResponse.json(client, { status: 201 });
 }
