@@ -7,35 +7,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/*
- NOTA: Usamos String en vez de enums nativos (SQLite).
- Valores esperados:
- - role: "ADMIN" | "BROKER"
- - currency: "USD" | "UF"
- - status: "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
-*/
+// role: "ADMIN" | "BROKER"
+// currency: "USD" | "UF"
+// status: "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   name         String
-  email        String   @unique
+  email        String    @unique
   passwordHash String
-  role         String   @default("BROKER") // "ADMIN" | "BROKER"
+  role         String    @default("BROKER")
   quotes       Quote[]
-  clients      Client[]
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 }
 
 model Project {
-  id          String   @id @default(cuid())
-  name        String
-  coverUrl    String?
-  address     String
-  city        String
-  country     String
+  id           String   @id @default(cuid())
+  name         String
+  coverUrl     String?
+  address      String
+  city         String
+  country      String
   deliveryDate DateTime
-  units       Unit[]
-  createdAt   DateTime @default(now())
+  units        Unit[]
+  createdAt    DateTime @default(now())
 }
 
 model Unit {
@@ -48,55 +43,45 @@ model Unit {
   bedrooms   Int
   bathrooms  Int
   price      Int
-  currency   String   // "USD" | "UF"
-  status     String   @default("AVAILABLE") // ver comentario arriba
+  currency   String    // "USD" | "UF"
+  status     String    @default("AVAILABLE")
   quotes     Quote[]
-  createdAt  DateTime @default(now())
-}
-
-model Client {
-  id         String   @id @default(cuid())
-  firstName  String
-  lastName   String
-  email      String
-  phone      String
-  broker     User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
-  brokerId   String
-  quotes     Quote[]
-  createdAt  DateTime @default(now())
-
-  @@index([brokerId])
-  @@index([email])
+  createdAt  DateTime  @default(now())
 }
 
 model Quote {
-  id                    String   @id @default(cuid())
-  unit                  Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  unitId                String
-  broker                User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
-  brokerId              String
-  client                Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId              String
-
-  downPaymentPct        Int
-  installments          Int
+  id                  String   @id @default(cuid())
+  unit                Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitId              String
+  broker              User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+  brokerId            String
+  downPaymentPct      Int
+  installments        Int
   calculatedDownPayment Int
-  installmentValue      Int
-  pdfUrl                String?
-  receipt               Receipt?
-  createdAt             DateTime @default(now())
-
-  @@index([brokerId])
-  @@index([clientId])
+  installmentValue    Int
+  pdfUrl              String?
+  receipt             Receipt?
+  createdAt           DateTime @default(now())
 }
 
 model Receipt {
-  id         String   @id @default(cuid())
-  quote      Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  quoteId    String   @unique
+  id         String  @id @default(cuid())
+  quote      Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quoteId    String  @unique
   fileName   String
   mimeType   String
   contentB64 String
   note       String?
   createdAt  DateTime @default(now())
+}
+
+// Cliente final del broker
+model Client {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  phone     String
+  ownerId   String   // id del broker creador
+  createdAt DateTime @default(now())
 }
