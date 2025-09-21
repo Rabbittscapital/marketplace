@@ -92,3 +92,12 @@ export default function Dashboard() {
     </main>
   );
 }
+import CreateQuoteForm from "../(components)/CreateQuoteForm";
+
+export default function DashboardPage() {
+  return (
+    <div className="p-6 space-y-6">
+      <CreateQuoteForm />
+    </div>
+  );
+}
