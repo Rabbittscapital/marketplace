@@ -19,6 +19,7 @@ model User {
   clients   Client[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  quotes  Quote[] @relation("BrokerQuotes")
 }
 
 model Client {
