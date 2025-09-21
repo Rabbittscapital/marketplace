@@ -1,14 +1,14 @@
-import type { NextAuthConfig } from "next-auth";
+import type { NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import { compare } from "bcryptjs";
 
-export const authOptions: NextAuthConfig = {
+export const authOptions: NextAuthOptions = {
   providers: [
     Credentials({
       name: "Email & Password",
       credentials: {
-        email: { label: "Email" },
+        email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" }
       },
       async authorize(creds) {
@@ -18,7 +18,7 @@ export const authOptions: NextAuthConfig = {
         if (!user) return null;
         const ok = await compare(pass, user.passwordHash);
         if (!ok) return null;
-        return { id: user.id, name: user.name, email: user.email, role: user.role } as any;
+        return { id: user.id, name: user.name, email: user.email, role: (user as any).role } as any;
       }
     })
   ],
