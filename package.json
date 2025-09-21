@@ -26,3 +26,25 @@
     "@types/bcryptjs": "2.4.2"
   }
 }
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && prisma db push && next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "14.2.4",
+    "next-auth": "4.24.7",
+    "@prisma/client": "^5.18.0",
+    "bcryptjs": "^2.4.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "prisma": "^5.18.0",
+    "@types/bcryptjs": "^2.4.2",
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.66",
+    "typescript": "^5.4.5"
+  }
+}
