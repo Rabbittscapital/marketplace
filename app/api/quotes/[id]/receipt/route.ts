@@ -28,25 +28,26 @@ export async function POST(
 
     const quoteId = params.id;
 
-    // Transacción: si ya hay receipt -> update; si no -> create.
     const result = await prisma.$transaction(async (tx) => {
-      const current = await tx.quote.findUnique({
+      // Verifica que la cotización exista
+      const quoteExists = await tx.quote.findUnique({
         where: { id: quoteId },
-        select: { id: true, receiptId: true, unitId: true },
+        select: { id: true, unitId: true },
+      });
+      if (!quoteExists) throw new Error('not_found');
+
+      // ¿Ya existe recibo para esta cotización?
+      const existing = await tx.receipt.findUnique({
+        where: { quoteId }, // quoteId es @unique
+        select: { id: true },
       });
 
-      if (!current) {
-        throw new Error('not_found');
-      }
-
-      if (current.receiptId) {
-        // Actualiza el URL del recibo existente
+      if (existing) {
         await tx.receipt.update({
-          where: { id: current.receiptId },
+          where: { quoteId },
           data: { url: receiptUrl.trim() },
         });
       } else {
-        // Crea el recibo y lo asocia a la cotización
         await tx.receipt.create({
           data: {
             url: receiptUrl.trim(),
@@ -54,16 +55,15 @@ export async function POST(
           },
         });
 
-        // (Opcional) Marcar la unidad como no disponible al adjuntar recibo por primera vez
-        if (current.unitId) {
+        // (Opcional) al subir recibo por primera vez, marcar la unidad como no disponible
+        if (quoteExists.unitId) {
           await tx.unit.update({
-            where: { id: current.unitId },
+            where: { id: quoteExists.unitId },
             data: { available: false },
           });
         }
       }
 
-      // Devuelve la cotización con relaciones útiles
       return tx.quote.findUnique({
         where: { id: quoteId },
         include: {
