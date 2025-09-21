@@ -2,14 +2,12 @@
   "name": "rabbitts-capital-brokers",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && prisma db push && next build",
     "start": "next start",
     "postinstall": "prisma generate"
   },
- {
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
@@ -19,9 +17,9 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
-    "prisma": "^5.22.0",
-    "typescript": "^5.6.2",
     "@types/node": "^20.14.12",
-    "@types/react": "^18.3.3"
+    "@types/react": "^18.3.3",
+    "prisma": "^5.22.0",
+    "typescript": "^5.6.2"
   }
 }
