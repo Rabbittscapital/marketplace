@@ -1,52 +1,94 @@
-async function getClients(brokerId: string) {
-  const url = `${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/api/clients?brokerId=${brokerId}`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return [];
-  return res.json();
-}
+// app/dashboard/page.tsx
 
-export default async function DashboardPage() {
-  // Para demo pegamos brokerId manual. En producción sale de la sesión del usuario.
-  const demoBrokerId = ""; // puedes dejarlo vacío; crea clientes con el form
-  const clients = demoBrokerId ? await getClients(demoBrokerId) : [];
-
+export default function Dashboard() {
   return (
-    <main style={{maxWidth:900,margin:"40px auto",padding:"0 16px"}}>
-      <h2>Dashboard (demo)</h2>
+    <main
+      style={{
+        maxWidth: 1100,
+        margin: "0 auto",
+        padding: "2rem 1.25rem",
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+      }}
+    >
+      <header style={{ marginBottom: "1.5rem" }}>
+        <h1 style={{ fontSize: "2rem", margin: 0 }}>Panel de control</h1>
+        <p style={{ color: "#666", marginTop: "0.5rem" }}>
+          Gestiona proyectos, unidades, clientes y cotizaciones.
+        </p>
+      </header>
 
-      <section style={{marginTop:24}}>
-        <h3>Crear cliente</h3>
-        <form action="/api/clients" method="post" style={{display:"grid",gap:10,maxWidth:560}}>
-          <label>Broker ID (demo)
-            <input name="brokerId" required placeholder="Pega tu brokerId (seed crea uno)"/>
-          </label>
-          <label>Nombre
-            <input name="firstName" required/>
-          </label>
-          <label>Apellido
-            <input name="lastName" required/>
-          </label>
-          <label>Email
-            <input type="email" name="email" required/>
-          </label>
-          <label>Teléfono
-            <input name="phone" />
-          </label>
-          <button className="btn">Crear</button>
-        </form>
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "1rem",
+        }}
+      >
+        <a
+          href="/proyectos"
+          style={{
+            display: "block",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: "1rem",
+            textDecoration: "none",
+          }}
+        >
+          <h3 style={{ margin: "0 0 0.5rem 0" }}>Proyectos</h3>
+          <p style={{ margin: 0, color: "#555" }}>
+            Ver listado de proyectos y stock.
+          </p>
+        </a>
+
+        <a
+          href="/clientes"
+          style={{
+            display: "block",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: "1rem",
+            textDecoration: "none",
+          }}
+        >
+          <h3 style={{ margin: "0 0 0.5rem 0" }}>Clientes</h3>
+          <p style={{ margin: 0, color: "#555" }}>
+            Crear y administrar tus clientes.
+          </p>
+        </a>
+
+        <a
+          href="/cotizaciones"
+          style={{
+            display: "block",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: "1rem",
+            textDecoration: "none",
+          }}
+        >
+          <h3 style={{ margin: "0 0 0.5rem 0" }}>Cotizaciones</h3>
+          <p style={{ margin: 0, color: "#555" }}>
+            Revisa e imprime cotizaciones.
+          </p>
+        </a>
+
+        <a
+          href="/reservas"
+          style={{
+            display: "block",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            padding: "1rem",
+            textDecoration: "none",
+          }}
+        >
+          <h3 style={{ margin: "0 0 0.5rem 0" }}>Reservas</h3>
+          <p style={{ margin: 0, color: "#555" }}>
+            Sube comprobantes y gestiona estados.
+          </p>
+        </a>
       </section>
-
-      <section style={{marginTop:32}}>
-        <h3>Mis clientes (demo)</h3>
-        {!demoBrokerId && <p style={{opacity:.7}}>Define <code>demoBrokerId</code> en este archivo para ver un listado.</p>}
-        <ul>
-          {clients.map((c: any) => (
-            <li key={c.id}>{c.firstName} {c.lastName} — {c.email}</li>
-          ))}
-        </ul>
-      </section>
-
-      <style jsx>{`.btn{padding:10px 14px;border-radius:8px;background:#111;color:#fff;border:0}`}</style>
     </main>
   );
 }
