@@ -1,30 +1,33 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-// GET -> lista del broker
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  const brokerId = (session as any)?.user?.id;
-  if (!brokerId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const brokerId = searchParams.get("brokerId") ?? "";
+  if (!brokerId) return NextResponse.json([], { status: 200 });
 
   const clients = await prisma.client.findMany({
     where: { brokerId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "desc" }
   });
   return NextResponse.json(clients);
 }
 
-// POST -> crear cliente
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const brokerId = (session as any)?.user?.id;
-  if (!brokerId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const data = await req.formData();
+  const brokerId   = (data.get("brokerId") as string) || "";
+  const firstName  = (data.get("firstName") as string) || "";
+  const lastName   = (data.get("lastName") as string) || "";
+  const email      = (data.get("email") as string) || "";
+  const phone      = (data.get("phone") as string) || null;
 
-  const { firstName, lastName, email, phone } = await req.json();
-  const c = await prisma.client.create({
-    data: { firstName, lastName, email, phone, brokerId },
+  if (!brokerId || !firstName || !lastName || !email) {
+    return NextResponse.json({ ok:false, error:"missing_fields" }, { status:400 });
+  }
+
+  const client = await prisma.client.create({
+    data: { brokerId, firstName, lastName, email, phone }
   });
-  return NextResponse.json({ ok: true, client: c });
+
+  return NextResponse.redirect(new URL("/dashboard", req.url), 302);
 }
