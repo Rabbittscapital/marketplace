@@ -25,21 +25,15 @@ model User {
 
 model Client {
   id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   name      String
   email     String?
   phone     String?
-
-  // 🔥 Ownership del cliente por un broker (User)
   brokerId  String?
   broker    User?    @relation(fields: [brokerId], references: [id])
-
   quotes    Quote[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([brokerId])
 }
-
 
 model Project {
   id          String   @id @default(cuid())
