@@ -25,13 +25,13 @@ export default async function QuotePrint({ params }: { params: { id: string } })
           <h3>Unidad</h3>
           <div><b>{unit.project.name}</b> — {unit.code}</div>
           <div>{unit.typology} · {unit.m2} m² · {unit.bedrooms}D/{unit.bathrooms}B</div>
-          <div><b>{unit.currency} {unit.price.toLocaleString()}</b></div>
+          <div><b>{unit.project.currency} {unit.price.toLocaleString()}</b></div>
         </div>
       </div>
 
       <h3 style={{ marginTop: 16 }}>Financiamiento</h3>
       <div>Pie: {q.downPaymentPct}% — Cuotas: {q.installments}</div>
-      <div>Cuota estimada: <b>{unit.currency} {q.installmentValue.toLocaleString()}</b></div>
+      <div>Cuota estimada: <b>{unit.project.currency} {q.installmentValue.toLocaleString()}</b></div>
 
       <div style={{ marginTop: 16 }}>
         <button className="btn" onClick={()=>window.print()}>Imprimir</button>
