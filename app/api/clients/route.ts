@@ -14,12 +14,11 @@ export async function GET(
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // Trae solo el cliente de ese broker (o sin broker si así lo manejas)
+  // Si quieres restringir por broker, descomenta brokerId en where
   const client = await prisma.client.findFirst({
     where: {
       id: params.id,
-      // si quieres restringir a los del broker logueado:
-      // brokerId
+      // brokerId,
     },
   });
 
