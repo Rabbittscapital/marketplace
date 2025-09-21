@@ -1,70 +1,58 @@
 // app/api/units/bulk/route.ts
 import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-type Row = {
-  code?: string | null;
-  typology?: string | null;
-  m2?: string | number | null;
-  bedrooms?: string | number | null;
-  bathrooms?: string | number | null;
-  floor?: string | number | null;  // <- usamos floor
-  price?: string | number | null;
-  available?: string | boolean | null;
-};
-
 export async function POST(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-    const body = await req.json();
-    const { projectId, rows } = body as { projectId: string; rows: Row[] };
+  const { projectId, rows } = await req.json() as {
+    projectId: string;
+    rows: Array<Record<string, string | number | null | undefined>>;
+  };
 
-    if (!projectId || !Array.isArray(rows)) {
-      return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
-    }
-
-    const createdIds: string[] = [];
-
-    for (const r of rows) {
-      const {
-        code = '',
-        typology = '',
-        m2 = null,
-        bedrooms = null,
-        bathrooms = null,
-        floor = null,
-        price = null,
-        available = null,
-      } = r ?? {};
-
-      const unit = await prisma.unit.create({
-        data: {
-          projectId,
-          code: (code ?? '').trim(),
-          typology: (typology ?? '').trim(),
-          m2: m2 == null ? 0 : Number(m2),
-          bedrooms: bedrooms == null ? 0 : Number(bedrooms),
-          bathrooms: bathrooms == null ? 0 : Number(bathrooms),
-          floor: floor == null ? null : Number(floor),     // <- ahora existe en Prisma
-          price: price == null ? 0 : Number(price),
-          available: available == null ? true : Boolean(available),
-        },
-      });
-
-      createdIds.push(unit.id);
-    }
-
-    return NextResponse.json({ ok: true, created: createdIds });
-  } catch (err) {
-    console.error('units:bulk error', err);
-    return NextResponse.json({ error: 'internal_error' }, { status: 500 });
+  if (!projectId || !Array.isArray(rows) || rows.length === 0) {
+    return NextResponse.json({ error: 'bad_request' }, { status: 400 });
   }
+
+  // Normalizamos claves esperadas
+  const prepared = rows.map((r) => {
+    const code = String(r.code ?? '').trim();
+    const typology = String(r.typology ?? '').trim();
+    const m2 = Number(r.m2 ?? 0);
+    const bedrooms = Number(r.bedrooms ?? 0);
+    const bathrooms = Number(r.bathrooms ?? 0);
+    const price = r.price == null || r.price === '' ? null : Number(r.price);
+    const available = r.available == null ? true : Boolean(r.available);
+
+    if (!code || !typology || Number.isNaN(m2)) {
+      throw new Error('invalid_row');
+    }
+
+    return {
+      projectId,
+      code,
+      typology,
+      m2,
+      bedrooms,
+      bathrooms,
+      price,
+      available,
+    };
+  });
+
+  // Opcional: eliminar existentes por code + projectId para reimportar limpio
+  // await prisma.unit.deleteMany({ where: { projectId } });
+
+  // createMany ignora duplicados si seteas skipDuplicates
+  const result = await prisma.unit.createMany({
+    data: prepared,
+    skipDuplicates: true,
+  });
+
+  return NextResponse.json({ inserted: result.count });
 }
