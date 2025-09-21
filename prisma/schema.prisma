@@ -3,74 +3,66 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql"     // Cambia a "sqlite" si lo usas localmente
   url      = env("DATABASE_URL")
 }
 
-/* NOTA: usamos cadenas en lugar de enums nativos para máxima compatibilidad. */
+// NOTA: usamos cadenas en lugar de enums nativos para máxima compatibilidad.
+// Si alguna vez quieres usar enums nativos, hazlo solo con Postgres/MySQL.
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         String   @default("BROKER") // "ADMIN" | "BROKER"
-  quotes       Quote[]
-  clients      Client[] @relation("BrokerClients")
-  createdAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  role      String   @default("broker")  // "admin" | "broker"
+  clients   Client[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Client {
   id        String   @id @default(cuid())
   firstName String
   lastName  String
-  email     String   @unique
-  phone     String?
-  broker    User     @relation(fields: [brokerId], references: [id], name: "BrokerClients", onDelete: Cascade)
+  email     String
+  phone     String
   brokerId  String
+  broker    User     @relation(fields: [brokerId], references: [id])
   quotes    Quote[]
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Project {
-  id           String   @id @default(cuid())
-  name         String   @unique
-  coverUrl     String?
-  address      String
-  city         String
-  country      String
-  deliveryDate DateTime?
-  units        Unit[]
-  createdAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  name      String
+  currency  String   // "UF" o "USD"
+  units     Unit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Unit {
-  id          String   @id @default(cuid())
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId   String
-  code        String
-  typology    String
-  m2          Int
-  bedrooms    Int
-  bathrooms   Int
-  price       Int
-  currency    String   // "UF" | "USD"
-  status      String   @default("AVAILABLE") // AVAILABLE | RESERVED_PENDING | RESERVED_CONFIRMED | SOLD
-  quotes      Quote[]
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  number    String
+  typology  String
+  price     Float
+  available Boolean  @default(true)
+  quotes    Quote[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Quote {
-  id                   String   @id @default(cuid())
-  unit                 Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  unitId               String
-  broker               User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
-  brokerId             String
-  client               Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId             String
-  downPaymentPct       Int
-  installments         Int
-  calculatedDownPayment Int
-  pdfUrl               String?
-  createdAt            DateTime @default(now())
+  id            String   @id @default(cuid())
+  unitId        String
+  unit          Unit     @relation(fields: [unitId], references: [id])
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id])
+  downPaymentPct Float
+  installments   Int
+  createdAt     DateTime @default(now())
 }
