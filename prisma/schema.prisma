@@ -22,9 +22,16 @@ model Client {
   name      String
   email     String?
   phone     String?
+
+  // Nuevo: ownership del cliente
+  brokerId  String?
+  broker    User?    @relation(fields: [brokerId], references: [id])
+
   quotes    Quote[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([brokerId])
 }
 
 model Project {
