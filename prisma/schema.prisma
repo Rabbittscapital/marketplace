@@ -3,95 +3,74 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// role: "ADMIN" | "BROKER"
-// currency: "USD" | "UF"
-// status: "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
+/* NOTA: usamos cadenas en lugar de enums nativos para máxima compatibilidad. */
 
 model User {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   name         String
-  email        String    @unique
+  email        String   @unique
   passwordHash String
-  role         String    @default("BROKER")
+  role         String   @default("BROKER") // "ADMIN" | "BROKER"
   quotes       Quote[]
-  clients      Client[]
-  createdAt    DateTime  @default(now())
+  clients      Client[] @relation("BrokerClients")
+  createdAt    DateTime @default(now())
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  phone     String?
+  broker    User     @relation(fields: [brokerId], references: [id], name: "BrokerClients", onDelete: Cascade)
+  brokerId  String
+  quotes    Quote[]
+  createdAt DateTime @default(now())
 }
 
 model Project {
   id           String   @id @default(cuid())
-  name         String
+  name         String   @unique
   coverUrl     String?
   address      String
   city         String
   country      String
-  deliveryDate DateTime
+  deliveryDate DateTime?
   units        Unit[]
   createdAt    DateTime @default(now())
 }
 
 model Unit {
-  id         String   @id @default(cuid())
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId  String
-  code       String
-  typology   String
-  m2         Int
-  bedrooms   Int
-  bathrooms  Int
-  price      Int
-  currency   String
-  status     String    @default("AVAILABLE")
-  quotes     Quote[]
-  createdAt  DateTime  @default(now())
-}
-
-model Client {
-  id         String   @id @default(cuid())
-  firstName  String
-  lastName   String
-  email      String
-  phone      String
-  broker     User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
-  brokerId   String
-  quotes     Quote[]
-  createdAt  DateTime @default(now())
-
-  @@index([brokerId])
-  @@index([email])
+  id          String   @id @default(cuid())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  code        String
+  typology    String
+  m2          Int
+  bedrooms    Int
+  bathrooms   Int
+  price       Int
+  currency    String   // "UF" | "USD"
+  status      String   @default("AVAILABLE") // AVAILABLE | RESERVED_PENDING | RESERVED_CONFIRMED | SOLD
+  quotes      Quote[]
+  createdAt   DateTime @default(now())
 }
 
 model Quote {
-  id                      String   @id @default(cuid())
-  unit                    Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  unitId                  String
-  broker                  User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
-  brokerId                String
-  client                  Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId                String
-  downPaymentPct          Int
-  installments            Int
-  calculatedDownPayment   Int
-  installmentValue        Int
-  pdfUrl                  String?
-  receipt                 Receipt?
-  createdAt               DateTime @default(now())
-
-  @@index([brokerId])
-  @@index([clientId])
-}
-
-model Receipt {
-  id         String   @id @default(cuid())
-  quote      Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  quoteId    String   @unique
-  fileName   String
-  mimeType   String
-  contentB64 String
-  note       String?
-  createdAt  DateTime @default(now())
+  id                   String   @id @default(cuid())
+  unit                 Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unitId               String
+  broker               User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+  brokerId             String
+  client               Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId             String
+  downPaymentPct       Int
+  installments         Int
+  calculatedDownPayment Int
+  pdfUrl               String?
+  createdAt            DateTime @default(now())
 }
