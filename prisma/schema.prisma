@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,19 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/*
-  Modelos diseñados para:
-  - currency a nivel de Project (USD, UF, etc.)
-  - Unit con flag booleano "available" (no usamos "status")
-  - Quote con relación opcional a Receipt (quote.receipt)
-  - Campos usados por los endpoints de bulk, mine y create
-*/
-
 model User {
   id        String   @id @default(cuid())
   name      String?
   email     String   @unique
-  password  String               // ← usamos "password" (no passwordHash)
+  password  String
   role      String   @default("BROKER")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -32,7 +22,6 @@ model Client {
   name      String
   email     String?
   phone     String?
-  // Si luego quieres ligar a un 'broker' agrega: brokerId String? y relación a User
   quotes    Quote[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -42,7 +31,7 @@ model Project {
   id          String   @id @default(cuid())
   name        String
   description String?
-  currency    String   @default("USD")  // 👈 Moneda a nivel proyecto
+  currency    String   @default("USD")
   units       Unit[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -52,16 +41,14 @@ model Unit {
   id         String   @id @default(cuid())
   projectId  String
   project    Project  @relation(fields: [projectId], references: [id])
-
-  code       String                // 👈 usado por /api/units/bulk
+  code       String
   typology   String
   m2         Int
   bedrooms   Int
   bathrooms  Int
   floor      Int?
   price      Int
-  available  Boolean  @default(true) // 👈 usamos available (no status)
-
+  available  Boolean  @default(true)
   quotes     Quote[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -75,15 +62,11 @@ model Quote {
   unit             Unit      @relation(fields: [unitId], references: [id])
   clientId         String
   client           Client    @relation(fields: [clientId], references: [id])
-
   downPaymentPct   Int
   installments     Int
   installmentValue Int
-  currency         String                  // 👈 se fija con project.currency al crear
-
-  // Relación 1-1 opcional con Receipt (quote.receipt)
+  currency         String
   receipt          Receipt?
-
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
