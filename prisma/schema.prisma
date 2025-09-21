@@ -1,11 +1,11 @@
 // prisma/schema.prisma
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
 }
 
 enum Role {
@@ -15,104 +15,89 @@ enum Role {
 
 model User {
   id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
   name      String
   email     String   @unique
   password  String
+  role      Role     @default(BROKER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relación (opcional) con clientes que atiende este broker
-  clients   Client[] @relation("BrokerClients")
-
-  // Si más adelante quieres cotizaciones por broker directamente:
-  // quotes    Quote[]  @relation("BrokerQuotes")
+  // Broker → Clients
+  clients   Client[]
 }
 
 model Client {
   id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // En algunos builds anteriores tenías firstName/lastName.
-  // Aquí simplificamos a un solo `name`. Si quieres volver a separar,
-  // agrega esos campos y ajusta tu API.
+  // Usamos un solo "name" para simplificar el backend.
   name      String
   email     String?  @unique
   phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Broker opcional dueño del cliente
+  // Relación opcional: quién es su broker
   brokerId  String?
-  broker    User?    @relation("BrokerClients", fields: [brokerId], references: [id])
+  broker    User?    @relation(fields: [brokerId], references: [id])
 
   quotes    Quote[]
 }
 
 model Project {
   id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
   name        String
   description String?
-
-  // Moneda a nivel de proyecto (UF, USD, CLP, etc.)
-  currency    String   @default("USD")
+  currency    String   // UF, USD, CLP, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   units       Unit[]
 }
 
 model Unit {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
 
-  projectId  String
-  project    Project  @relation(fields: [projectId], references: [id])
+  code      String
+  typology  String
+  m2        Int
+  bedrooms  Int
+  bathrooms Int
+  price     Float?
+  available Boolean  @default(true)
 
-  code       String
-  typology   String
-  m2         Int
-  bedrooms   Int
-  bathrooms  Int
-  floor      Int?          // ← NUEVO (opcional)
-  price      Int
-  available  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  quotes     Quote[]
+  quotes    Quote[]
 }
 
 model Quote {
   id               String   @id @default(cuid())
+  number           String   @unique
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  number           String   @unique        // requerido por tus builds previos
-  downPaymentPct   Float
-  installments     Int
-  installmentValue Float
-  currency         String
-
   // Relaciones
   unitId  String
-  unit    Unit     @relation(fields: [unitId], references: [id])
-
+  unit    Unit    @relation(fields: [unitId], references: [id])
   clientId String
   client   Client  @relation(fields: [clientId], references: [id])
 
-  // Relación 1–1 (opcional) con Receipt
-  // OJO: En una relación 1–1, solo un lado lleva `fields`/`references`.
-  receipt  Receipt?
+  // Datos de negocio
+  downPaymentPct    Float
+  installments      Int
+  installmentValue  Float
+  currency          String
+
+  // 1–1 con Receipt (sólo un lado define fields/references)
+  receipt   Receipt?
 }
 
 model Receipt {
   id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  uploadedAt DateTime @default(now())
-
-  url        String
-
-  // Parte dueña de la relación 1–1 con Quote
   quoteId    String   @unique
   quote      Quote    @relation(fields: [quoteId], references: [id])
+  url        String
+  uploadedAt DateTime @default(now())
 }
