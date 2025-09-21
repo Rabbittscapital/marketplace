@@ -9,12 +9,18 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
-  name      String?
+  name      String
   email     String   @unique
   password  String
-  role      String   @default("BROKER")
+  role      String   // "ADMIN" | "BROKER"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // 🔥 Relación inversa requerida por Client.broker
+  clients   Client[]
+
+  // Si en el futuro vuelves a relacionar Quote con User (p.ej. brokerId),
+  // aquí agregarías: quotes Quote[]
 }
 
 model Client {
@@ -23,7 +29,7 @@ model Client {
   email     String?
   phone     String?
 
-  // Nuevo: ownership del cliente
+  // 🔥 Ownership del cliente por un broker (User)
   brokerId  String?
   broker    User?    @relation(fields: [brokerId], references: [id])
 
@@ -33,6 +39,7 @@ model Client {
 
   @@index([brokerId])
 }
+
 
 model Project {
   id          String   @id @default(cuid())
