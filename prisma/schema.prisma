@@ -52,19 +52,29 @@ model Project {
 }
 
 model Unit {
-  id        String  @id @default(cuid())
-  number    String
-  typology  String
-  price     Int
-  status    String  @default("AVAILABLE") // "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
 
-  project   Project @relation(fields: [projectId], references: [id])
-  projectId String
+  // === Campos identificadores/visualización ===
+  // 'code' lo usa tu importación masiva (bulk). Lo dejamos opcional para no romper otros flujos.
+  code       String?  @db.VarChar(64)
+  // Si ya tienes 'number' y lo usas en UI, puedes mantener ambos sin problema.
+  number     String?  @db.VarChar(64)
 
-  quotes    Quote[]
+  // === Atributos de la unidad ===
+  typology   String
+  m2         Int?
+  bedrooms   Int?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // === Comerciales ===
+  price      Int
+  available  Boolean  @default(true)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  quotes     Quote[]
 }
 
 model Quote {
