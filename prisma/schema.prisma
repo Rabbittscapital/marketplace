@@ -72,7 +72,7 @@ model Quote {
   // Relaciones
   unit    Unit   @relation(fields: [unitId], references: [id])
   client  Client @relation(fields: [clientId], references: [id])
-  broker  User   @relation(fields: [brokerId], references: [id])
+  broker  User   @relation("BrokerQuotes", fields: [brokerId], references: [id])
 
   @@index([brokerId])
   @@index([clientId])
