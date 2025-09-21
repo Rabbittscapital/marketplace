@@ -18,7 +18,7 @@ export default function LoginPage() {
       email,
       password,
       redirect: true,
-      callbackUrl: "/dashboard",
+      callbackUrl: "/dashboard"
     });
 
     if ((res as any)?.error) {
@@ -55,7 +55,7 @@ export default function LoginPage() {
             background: "#111827",
             color: "white",
             border: "none",
-            cursor: "pointer",
+            cursor: "pointer"
           }}
         >
           {loading ? "Ingresando..." : "Entrar"}
