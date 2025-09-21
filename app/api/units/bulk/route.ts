@@ -6,6 +6,17 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+type Row = {
+  code?: string | null;
+  typology?: string | null;
+  m2?: string | number | null;
+  bedrooms?: string | number | null;
+  bathrooms?: string | number | null;
+  floor?: string | number | null;  // <- usamos floor
+  price?: string | number | null;
+  available?: string | boolean | null;
+};
+
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,25 +25,14 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { projectId, rows } = body as {
-      projectId: string;
-      rows: Array<{
-        code?: string | null;
-        typology?: string | null;
-        m2?: string | number | null;
-        bedrooms?: string | number | null;
-        bathrooms?: string | number | null;
-        // floor?: string | number | null; // <- quitado
-        price?: string | number | null;
-        available?: string | boolean | null;
-      }>;
-    };
+    const { projectId, rows } = body as { projectId: string; rows: Row[] };
 
     if (!projectId || !Array.isArray(rows)) {
       return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
     }
 
-    const created = [];
+    const createdIds: string[] = [];
+
     for (const r of rows) {
       const {
         code = '',
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
         m2 = null,
         bedrooms = null,
         bathrooms = null,
-        // floor = null,                  // <- quitado
+        floor = null,
         price = null,
         available = null,
       } = r ?? {};
@@ -53,16 +53,16 @@ export async function POST(req: Request) {
           m2: m2 == null ? 0 : Number(m2),
           bedrooms: bedrooms == null ? 0 : Number(bedrooms),
           bathrooms: bathrooms == null ? 0 : Number(bathrooms),
-          // floor: floor == null ? null : Number(floor),  // <- quitado
+          floor: floor == null ? null : Number(floor),     // <- ahora existe en Prisma
           price: price == null ? 0 : Number(price),
           available: available == null ? true : Boolean(available),
         },
       });
 
-      created.push(unit.id);
+      createdIds.push(unit.id);
     }
 
-    return NextResponse.json({ ok: true, created });
+    return NextResponse.json({ ok: true, created: createdIds });
   } catch (err) {
     console.error('units:bulk error', err);
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
