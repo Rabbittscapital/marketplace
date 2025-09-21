@@ -1,78 +1,96 @@
 // prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // Debe comenzar con postgres:// o postgresql://
+  url      = env("DATABASE_URL")
 }
 
-/*
- Mantengo strings en vez de enums para simplificar despliegues y cambios.
- Valores esperados en la app:
- - User.role:        "ADMIN" | "BROKER"
- - Project.currency: "USD" | "UF"
- - Unit.status:      "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
-*/
-
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String?  @unique
-  image     String?
-  quotes    Quote[]  @relation("BrokerQuotes")
-  clients   Client[]
+  id           String   @id @default(cuid())
+  name         String?
+  email        String?  @unique
+  image        String?
+  role         String   @default("BROKER")
+  passwordHash String?
+
+  clients      Client[]
+  quotes       Quote[]  @relation("BrokerQuotes")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Client {
   id        String   @id @default(cuid())
-  name      String
+  firstName String
+  lastName  String
   email     String?
   phone     String?
+
   brokerId  String
   broker    User     @relation(fields: [brokerId], references: [id])
+
   quotes    Quote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([brokerId])
 }
 
 model Project {
   id        String   @id @default(cuid())
   name      String
-  currency  String   // <-- La moneda del proyecto (USD, CLP, PYG, etc.)
+  currency  String        // p.ej. "USD", "UF", "CLP", "PYG"
+
   units     Unit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Unit {
-  id        String   @id @default(cuid())
-  number    String
-  typology  String
-  price     Int
-  available Boolean  @default(true)
+  id         String   @id @default(cuid())
+  number     String
+  typology   String
+  price      Int
+  available  Boolean  @default(true)
 
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
 
-  quotes    Quote[]
+  quotes     Quote[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([projectId])
 }
 
 model Quote {
-  id              String   @id @default(cuid())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  downPaymentPct  Int
-  installments    Int
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  unitId           String
+  unit             Unit     @relation(fields: [unitId], references: [id])
+
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id])
+
+  brokerId         String
+  broker           User     @relation("BrokerQuotes", fields: [brokerId], references: [id])
+
+  downPaymentPct   Int
+  installments     Int
   installmentValue Int
-  totalPrice      Int
-  currency        String   // <-- Se guarda desde project.currency
+  totalPrice       Int
+  currency         String   // se guarda desde unit.project.currency
 
-  // Relaciones
-  unitId   String
-  unit     Unit     @relation(fields: [unitId], references: [id])
-
-  clientId String
-  client   Client   @relation(fields: [clientId], references: [id])
-
-  brokerId String
-  broker   User     @relation("BrokerQuotes", fields: [brokerId], references: [id])
+  @@index([unitId])
+  @@index([clientId])
+  @@index([brokerId])
 }
