@@ -2,15 +2,13 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-
-    // necesitamos el id del usuario (broker)
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
@@ -21,12 +19,7 @@ export async function GET() {
       where: { brokerId },
       include: {
         client: true,
-        unit: {
-          include: {
-            project: true,
-          },
-        },
-        // ❌ NO pongas "receipt: true" porque no existe en tu schema actual
+        unit: { include: { project: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -36,7 +29,7 @@ export async function GET() {
     console.error(error);
     return NextResponse.json(
       { ok: false, error: 'quotes_fetch_failed' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
