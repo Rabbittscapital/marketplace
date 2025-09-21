@@ -23,7 +23,6 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
   const bytes = new Uint8Array(buffer);
   const len = bytes.length;
   for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-  // btoa funciona en cliente
   return typeof window !== "undefined" ? window.btoa(binary) : "";
 }
 
@@ -70,6 +69,11 @@ export default function UnitPage({ params }: { params: { id: string } }) {
       alert("Selecciona un cliente primero.");
       return;
     }
+    if (!unit) {
+      alert("La unidad aún no está cargada. Vuelve a intentarlo.");
+      return;
+    }
+
     setCreating(true);
     try {
       const res = await fetch(`/api/quote/create`, {
