@@ -6,44 +6,26 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-type CreateQuoteBody = {
-  unitId: string;
-  client?: {
-    id?: string;
-    name?: string;
-    email?: string | null;
-    phone?: string | null;
-  };
-  downPaymentPct: number | string;
-  installments: number | string;
-  installmentValue: number | string;
-  currency?: string; // opcional; si no viene, usa unit.project.currency
-};
+function pad(n: number, w: number) {
+  return n.toString().padStart(w, '0');
+}
 
-// Genera un número único simple para la cotización
-async function generateQuoteNumber(): Promise<string> {
-  // Formato: Q-YYYYMMDD-HHMMSS-<4dig>
+async function nextQuoteNumber() {
+  // Formato: Q-YYYYMM-#### (ej: Q-202509-0001)
   const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
   const y = now.getFullYear();
-  const m = pad(now.getMonth() + 1);
-  const d = pad(now.getDate());
-  const hh = pad(now.getHours());
-  const mm = pad(now.getMinutes());
-  const ss = pad(now.getSeconds());
-  const rand = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const m = pad(now.getMonth() + 1, 2);
+  const prefix = `Q-${y}${m}-`;
 
-  let number = `Q-${y}${m}${d}-${hh}${mm}${ss}-${rand}`;
+  const last = await prisma.quote.findFirst({
+    where: { number: { startsWith: prefix } },
+    orderBy: { number: 'desc' },
+    select: { number: true },
+  });
 
-  // En caso MUY raro de colisión, reintenta unas veces
-  for (let i = 0; i < 3; i++) {
-    const exists = await prisma.quote.findUnique({ where: { number } });
-    if (!exists) return number;
-    number = `Q-${y}${m}${d}-${hh}${mm}${ss}-${Math.floor(Math.random() * 10000)
-      .toString()
-      .padStart(4, '0')}`;
-  }
-  return number;
+  const lastSeq = last?.number ? parseInt(last.number.slice(prefix.length), 10) : 0;
+  const nextSeq = pad((lastSeq || 0) + 1, 4);
+  return `${prefix}${nextSeq}`;
 }
 
 export async function POST(req: Request) {
@@ -54,133 +36,69 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
-    const body = (await req.json()) as CreateQuoteBody;
+    const body = await req.json();
+    const {
+      unitId,
+      clientId,
+      downPaymentPct,
+      installments,
+      installmentValue,
+      currency,
+    } = body ?? {};
 
-    // Validaciones básicas
-    if (!body?.unitId) {
-      return NextResponse.json({ error: 'unit_id_required' }, { status: 400 });
-    }
-    const dp = Number(body.downPaymentPct);
-    const installments = Number(body.installments);
-    const installmentValue = Number(body.installmentValue);
-
-    if (
-      Number.isNaN(dp) ||
-      Number.isNaN(installments) ||
-      Number.isNaN(installmentValue)
-    ) {
-      return NextResponse.json({ error: 'invalid_numbers' }, { status: 400 });
+    if (!unitId || !clientId) {
+      return NextResponse.json({ error: 'missing_unit_or_client' }, { status: 400 });
     }
 
-    // Busca la unidad con el proyecto (para leer currency)
-    const unit = await prisma.unit.findFirst({
-      where: { id: body.unitId, available: true },
+    // Traer unidad + proyecto para tomar currency por defecto si no viene
+    const unit = await prisma.unit.findUnique({
+      where: { id: unitId },
       include: { project: true },
     });
     if (!unit) {
-      // no encontrada o no disponible
-      return NextResponse.json(
-        { error: 'unit_not_found_or_unavailable' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'unit_not_found' }, { status: 404 });
+    }
+    if (unit.available === false) {
+      return NextResponse.json({ error: 'unit_not_available' }, { status: 400 });
     }
 
-    // Determinar moneda: prioridad payload > project.currency
-    const currency =
-      (body.currency ?? '').trim() || unit.project.currency || 'USD';
-
-    // Resolver cliente:
-    // 1) Si viene id -> lo usamos
-    // 2) Si viene email -> intentamos encontrar uno del mismo broker
-    // 3) Si no existe -> lo creamos (name/email/phone, brokerId)
-    let clientId: string | null = null;
-
-    if (body.client?.id) {
-      const existing = await prisma.client.findUnique({
-        where: { id: body.client.id },
-      });
-      if (!existing) {
-        return NextResponse.json({ error: 'client_not_found' }, { status: 404 });
-      }
-      clientId = existing.id;
-    } else if (body.client?.email) {
-      const byEmail = await prisma.client.findFirst({
-        where: {
-          email: body.client.email,
-          // Si quieres forzar pertenencia al broker:
-          // brokerId: brokerId,
-        },
-      });
-
-      if (byEmail) {
-        clientId = byEmail.id;
-      } else {
-        const created = await prisma.client.create({
-          data: {
-            name: (body.client?.name ?? '').trim() || 'Sin nombre',
-            email: body.client?.email ?? null,
-            phone: body.client?.phone ?? null,
-            brokerId, // asigna el cliente al broker logueado
-          },
-        });
-        clientId = created.id;
-      }
-    } else {
-      // No id ni email -> creamos cliente mínimo
-      const created = await prisma.client.create({
-        data: {
-          name: (body.client?.name ?? '').trim() || 'Sin nombre',
-          email: body.client?.email ?? null,
-          phone: body.client?.phone ?? null,
-          brokerId,
-        },
-      });
-      clientId = created.id;
+    // Validar que el cliente pertenezca al broker (si usas brokerId opcional, se permite null)
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true, brokerId: true },
+    });
+    if (!client) {
+      return NextResponse.json({ error: 'client_not_found' }, { status: 404 });
+    }
+    if (client.brokerId && client.brokerId !== brokerId) {
+      return NextResponse.json({ error: 'forbidden_client' }, { status: 403 });
     }
 
-    // Crear número único de cotización
-    const number = await generateQuoteNumber();
+    const number = await nextQuoteNumber();
 
-    // Crear Quote conectando relaciones
     const quote = await prisma.quote.create({
       data: {
         number,
-        downPaymentPct: dp,
-        installments,
-        installmentValue,
-        currency,
+        downPaymentPct: Number(downPaymentPct ?? 0),
+        installments: Number(installments ?? 0),
+        installmentValue: Number(installmentValue ?? 0),
+        currency: currency || unit.project?.currency || 'USD',
         unit: { connect: { id: unit.id } },
-        client: { connect: { id: clientId! } },
+        client: { connect: { id: client.id } },
       },
       include: {
-        unit: { include: { project: true } },
         client: true,
+        unit: { include: { project: true } },
         receipt: true,
       },
     });
 
-    // NO cambiamos availability aquí. Se bloquearía al subir el Receipt.
-    // Si quisieras bloquear de inmediato, descomenta:
+    // (Opcional) Marcar unidad como no disponible inmediatamente:
     // await prisma.unit.update({ where: { id: unit.id }, data: { available: false } });
 
     return NextResponse.json(quote, { status: 201 });
-  } catch (err) {
-    console.error('quote:create error', err);
-    // Si el fallo es por unique(number), reintenta 1 vez
-    const msg = `${err}`;
-    if (msg.includes('Unique constraint failed on the fields: (`number`)')) {
-      try {
-        const retryNumber = await generateQuoteNumber();
-        // No podemos reusar variables locales (unit, clientId, currency, etc.) fuera del scope,
-        // así que mejor retornamos error específico para reintento desde el frontend si quieres.
-        return NextResponse.json(
-          { error: 'quote_number_collision', retry: true },
-          { status: 409 }
-        );
-      } catch {
-        /* ignore */
-      }
-    }
+  } catch (e) {
+    console.error('quote:create error', e);
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
 }
