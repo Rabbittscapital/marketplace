@@ -1,31 +1,67 @@
 "use client";
-import { useState } from "react";
+
+import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
-export default function Login() {
-  const r = useRouter();
-  const [email,setEmail]=useState("");
-  const [password,setPassword]=useState("");
-  const [err,setErr]=useState("");
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  async function onSubmit(e:React.FormEvent){
-    e.preventDefault(); setErr("");
-    const res = await signIn("credentials",{ email, password, redirect:false });
-    if(res?.ok) r.push("/marketplace"); else setErr("Credenciales inválidas");
-  }
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErr(null);
+
+    const res = await signIn("credentials", {
+      email,
+      password,
+      redirect: true,
+      callbackUrl: "/dashboard",
+    });
+
+    if ((res as any)?.error) {
+      setErr((res as any).error);
+      setLoading(false);
+    }
+  };
 
   return (
-    <div style={{minHeight:"100vh",display:"grid",placeItems:"center",padding:24}}>
-      <form onSubmit={onSubmit} style={{maxWidth:380,width:"100%",background:"#fff",padding:24,borderRadius:12,boxShadow:"0 12px 28px rgba(0,0,0,.06)"}}>
-        <h1 style={{margin:"6px 0 18px"}}>Acceso Brokers</h1>
-        <label>Email</label>
-        <input value={email} onChange={e=>setEmail(e.target.value)} type="email" required style={{width:"100%",margin:"6px 0 12px"}}/>
-        <label>Clave</label>
-        <input value={password} onChange={e=>setPassword(e.target.value)} type="password" required style={{width:"100%",margin:"6px 0 16px"}}/>
-        {err && <div style={{color:"#b00020",marginBottom:8}}>{err}</div>}
-        <button type="submit" style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1px solid #111"}}>Ingresar</button>
+    <main style={{ maxWidth: 380, margin: "40px auto", fontFamily: "ui-sans-serif" }}>
+      <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 16 }}>Ingresar</h1>
+      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+        <input
+          type="email"
+          placeholder="tu@email.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+        />
+        <input
+          type="password"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          style={{ padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
+        />
+        <button
+          disabled={loading}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 8,
+            background: "#111827",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          {loading ? "Ingresando..." : "Entrar"}
+        </button>
+        {err && <p style={{ color: "crimson" }}>{err}</p>}
       </form>
-    </div>
+    </main>
   );
 }
