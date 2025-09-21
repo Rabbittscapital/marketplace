@@ -1,6 +1,7 @@
 // app/dashboard/page.tsx
+import CreateQuoteForm from "../(components)/CreateQuoteForm";
 
-export default function Dashboard() {
+export default function DashboardPage() {
   return (
     <main
       style={{
@@ -23,6 +24,7 @@ export default function Dashboard() {
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           gap: "1rem",
+          marginBottom: "2rem",
         }}
       >
         <a
@@ -89,15 +91,13 @@ export default function Dashboard() {
           </p>
         </a>
       </section>
+
+      {/* Zona de acciones rápidas (ej: crear cotización) */}
+      <section>
+        <CreateQuoteForm />
+      </section>
     </main>
   );
 }
-import CreateQuoteForm from "../(components)/CreateQuoteForm";
 
-export default function DashboardPage() {
-  return (
-    <div className="p-6 space-y-6">
-      <CreateQuoteForm />
-    </div>
-  );
-}
+  
