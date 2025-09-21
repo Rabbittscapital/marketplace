@@ -1,57 +1,52 @@
-// app/dashboard/page.tsx
-import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+async function getClients(brokerId: string) {
+  const url = `${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/api/clients?brokerId=${brokerId}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return [];
+  return res.json();
+}
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
-  const brokerId = (session as any)?.user?.id;
-
-  const [clients, quotes] = await Promise.all([
-    prisma.client.findMany({ where: { brokerId }, orderBy: { createdAt: "desc" } }),
-    prisma.quote.findMany({
-      where: { brokerId },
-      include: { client: true, unit: { include: { project: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  // Para demo pegamos brokerId manual. En producción sale de la sesión del usuario.
+  const demoBrokerId = ""; // puedes dejarlo vacío; crea clientes con el form
+  const clients = demoBrokerId ? await getClients(demoBrokerId) : [];
 
   return (
-    <div>
-      <h1>Mi panel</h1>
+    <main style={{maxWidth:900,margin:"40px auto",padding:"0 16px"}}>
+      <h2>Dashboard (demo)</h2>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <h3>Mis clientes</h3>
-        <Link className="btn" href="/dashboard/nuevo-cliente">+ Nuevo cliente</Link>
-        <div style={{ marginTop: 12 }}>
-          {clients.length === 0 && <div>No tienes clientes aún.</div>}
-          {clients.map(c => (
-            <div key={c.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
-              <b>{c.firstName} {c.lastName}</b> — {c.email} — {c.phone}
-            </div>
+      <section style={{marginTop:24}}>
+        <h3>Crear cliente</h3>
+        <form action="/api/clients" method="post" style={{display:"grid",gap:10,maxWidth:560}}>
+          <label>Broker ID (demo)
+            <input name="brokerId" required placeholder="Pega tu brokerId (seed crea uno)"/>
+          </label>
+          <label>Nombre
+            <input name="firstName" required/>
+          </label>
+          <label>Apellido
+            <input name="lastName" required/>
+          </label>
+          <label>Email
+            <input type="email" name="email" required/>
+          </label>
+          <label>Teléfono
+            <input name="phone" />
+          </label>
+          <button className="btn">Crear</button>
+        </form>
+      </section>
+
+      <section style={{marginTop:32}}>
+        <h3>Mis clientes (demo)</h3>
+        {!demoBrokerId && <p style={{opacity:.7}}>Define <code>demoBrokerId</code> en este archivo para ver un listado.</p>}
+        <ul>
+          {clients.map((c: any) => (
+            <li key={c.id}>{c.firstName} {c.lastName} — {c.email}</li>
           ))}
-        </div>
-      </div>
+        </ul>
+      </section>
 
-      <div className="card">
-        <h3>Mis cotizaciones</h3>
-        {quotes.length === 0 && <div>No tienes cotizaciones aún.</div>}
-        {quotes.map(q => (
-          <div key={q.id} style={{ padding: "8px 0", borderBottom: "1px solid #eee" }}>
-            <div>
-              <b>{q.unit.project.name} — {q.unit.code}</b> · Cliente: {q.client.firstName} {q.client.lastName}
-            </div>
-            <div style={{ color:"#666", fontSize:14 }}>
-              Pie {q.downPaymentPct}% · {q.installments} cuotas ·
-              Est. cuota: {q.unit.currency} {q.installmentValue.toLocaleString()}
-            </div>
-            <div style={{ marginTop: 6 }}>
-              <Link className="btn" href={`/quotes/${q.id}`}>Ver / Imprimir</Link>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      <style jsx>{`.btn{padding:10px 14px;border-radius:8px;background:#111;color:#fff;border:0}`}</style>
+    </main>
   );
 }
