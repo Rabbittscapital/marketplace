@@ -1,9 +1,11 @@
 {
   "name": "rabbitts-capital-brokers",
   "version": "1.0.0",
-  "private": true,
   "scripts": {
-    "dev": "next dev",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && prisma db push --accept-data-loss && next build",
+    "dev": "next dev"
+  },
     "build": "prisma generate && prisma db push && next build",
     "start": "next start",
     "postinstall": "prisma generate"
