@@ -1,52 +1,49 @@
 // prisma/schema.prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
 
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/*
+  Modelos diseñados para:
+  - currency a nivel de Project (USD, UF, etc.)
+  - Unit con flag booleano "available" (no usamos "status")
+  - Quote con relación opcional a Receipt (quote.receipt)
+  - Campos usados por los endpoints de bulk, mine y create
+*/
+
 model User {
   id        String   @id @default(cuid())
   name      String?
   email     String   @unique
-  password  String
-  image     String?
-  role      String   @default("BROKER") // "ADMIN" | "BROKER"
-
-  clients   Client[]
-  quotes    Quote[]  @relation("BrokerQuotes")
-
+  password  String               // ← usamos "password" (no passwordHash)
+  role      String   @default("BROKER")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Client {
   id        String   @id @default(cuid())
-  firstName String
-  lastName  String
+  name      String
   email     String?
   phone     String?
-
-  broker    User     @relation(fields: [brokerId], references: [id])
-  brokerId  String
-
+  // Si luego quieres ligar a un 'broker' agrega: brokerId String? y relación a User
   quotes    Quote[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Project {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   description String?
-  currency    String  // "USD" | "UF"
-
+  currency    String   @default("USD")  // 👈 Moneda a nivel proyecto
   units       Unit[]
-
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -56,46 +53,48 @@ model Unit {
   projectId  String
   project    Project  @relation(fields: [projectId], references: [id])
 
-  // === Campos identificadores/visualización ===
-  // 'code' lo usa tu importación masiva (bulk). Lo dejamos opcional para no romper otros flujos.
-  code       String?  @db.VarChar(64)
-  // Si ya tienes 'number' y lo usas en UI, puedes mantener ambos sin problema.
-  number     String?  @db.VarChar(64)
-
-  // === Atributos de la unidad ===
+  code       String                // 👈 usado por /api/units/bulk
   typology   String
-  m2         Int?
-  bedrooms   Int?
-
-  // === Comerciales ===
+  m2         Int
+  bedrooms   Int
+  bathrooms  Int
+  floor      Int?
   price      Int
-  available  Boolean  @default(true)
+  available  Boolean  @default(true) // 👈 usamos available (no status)
 
+  quotes     Quote[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  quotes     Quote[]
+  @@index([projectId])
 }
 
 model Quote {
-  id               String  @id @default(cuid())
-
-  unit             Unit    @relation(fields: [unitId], references: [id])
+  id               String    @id @default(cuid())
   unitId           String
-
-  client           Client  @relation(fields: [clientId], references: [id])
+  unit             Unit      @relation(fields: [unitId], references: [id])
   clientId         String
-
-  broker           User    @relation("BrokerQuotes", fields: [brokerId], references: [id])
-  brokerId         String
+  client           Client    @relation(fields: [clientId], references: [id])
 
   downPaymentPct   Int
   installments     Int
   installmentValue Int
-  totalPrice       Int
-  currency         String // tomado de project.currency
-  receiptUrl       String?
+  currency         String                  // 👈 se fija con project.currency al crear
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  // Relación 1-1 opcional con Receipt (quote.receipt)
+  receipt          Receipt?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([unitId])
+  @@index([clientId])
+}
+
+model Receipt {
+  id        String   @id @default(cuid())
+  quoteId   String   @unique
+  quote     Quote    @relation(fields: [quoteId], references: [id])
+  url       String
+  createdAt DateTime @default(now())
 }
