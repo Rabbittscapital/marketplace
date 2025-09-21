@@ -1,3 +1,14 @@
+// prisma/schema.prisma
+// ─────────────────────────────────────────────────────────────────────────────
+// Prisma 5.x — Postgres
+// Modelos coherentes con endpoints /clients, /units/bulk, /quotes/*
+// - Project.currency (String)
+// - Unit.available (Boolean) y campos usados en bulk (code, typology, m2, bedrooms, bathrooms, price)
+// - Quote.currency (String), relación 1–1 opcional con Receipt anclada en Receipt.quoteId (@unique)
+// - Client con firstName/lastName/email/phone y brokerId -> User
+// - User con password (no passwordHash) y role como String
+// ─────────────────────────────────────────────────────────────────────────────
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,83 +20,114 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   // "ADMIN" | "BROKER"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // 🔥 Relación inversa requerida por Client.broker
+  name      String?
+  email     String   @unique
+  image     String?
+  password  String   // bcrypt hash se guarda aquí (campo "password" esperado por tu seed)
+  role      String   // "ADMIN" | "BROKER" (String para flexibilidad)
+
+  // Relación con clientes (broker -> clients)
   clients   Client[]
 
-  // Si en el futuro vuelves a relacionar Quote con User (p.ej. brokerId),
-  // aquí agregarías: quotes Quote[]
+  @@index([email])
 }
 
 model Client {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  name      String
-  email     String?
+
+  firstName String
+  lastName  String
+  email     String   @unique
   phone     String?
+
+  // Broker opcional (según tu API, filtras por brokerId)
   brokerId  String?
   broker    User?    @relation(fields: [brokerId], references: [id])
+
+  // Relación con cotizaciones
   quotes    Quote[]
+
+  @@index([brokerId])
+  @@index([email])
 }
 
 model Project {
   id          String   @id @default(cuid())
-  name        String
-  description String?
-  currency    String   @default("USD")
-  units       Unit[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  name        String
+  description String?
+  currency    String   // "USD" | "UF" (String para flexibilidad)
+
+  // Unidades del proyecto
+  units       Unit[]
+
+  @@index([currency])
 }
 
 model Unit {
   id         String   @id @default(cuid())
-  projectId  String
-  project    Project  @relation(fields: [projectId], references: [id])
-  code       String
-  typology   String
-  m2         Int
-  bedrooms   Int
-  bathrooms  Int
-  floor      Int?
-  price      Int
-  available  Boolean  @default(true)
-  quotes     Quote[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
+
+  // Campos usados en /units/bulk
+  code       String?  // algunos CSVs lo traen
+  typology   String
+  m2         Int?
+  bedrooms   Int?
+  bathrooms  Int?
+  price      Int
+
+  available  Boolean  @default(true) // reemplaza cualquier uso previo de "status"
+
+  // Relación con cotizaciones
+  quotes     Quote[]
+
   @@index([projectId])
+  @@index([available])
+  @@index([code])
 }
 
 model Quote {
-  id               String    @id @default(cuid())
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  number           String    @unique
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  number           String   @unique
+
   unitId           String
-  unit             Unit      @relation(fields: [unitId], references: [id])
+  unit             Unit     @relation(fields: [unitId], references: [id])
+
   clientId         String
-  client           Client    @relation(fields: [clientId], references: [id])
+  client           Client   @relation(fields: [clientId], references: [id])
+
   downPaymentPct   Int
   installments     Int
   installmentValue Int
-  currency         String
+  currency         String   // se copia desde unit.project.currency al crear la cotización
 
-  receiptId String?
-  receipt   Receipt? @relation(fields: [receiptId], references: [id])
+  // Relación 1–1 (opcional) a Receipt
+  // La FK vive en Receipt.quoteId (@unique). Aquí NO se definen fields/references.
+  receipt          Receipt?
 }
 
 model Receipt {
   id         String   @id @default(cuid())
   url        String
   uploadedAt DateTime @default(now())
-  quoteId    String   @unique
-  quote      Quote    @relation(fields: [quoteId], references: [id])
+
+  // Relación 1–1 con Quote: FK aquí (única)
+  quoteId String  @unique
+  quote   Quote   @relation(fields: [quoteId], references: [id])
+
+  @@index([quoteId])
 }
