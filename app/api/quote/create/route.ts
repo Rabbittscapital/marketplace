@@ -1,40 +1,31 @@
 // app/api/quote/create/route.ts
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
 
-    // Si necesitas obligar sesión, descomenta:
-    // if (!session?.user?.id) {
-    //   return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    // }
+    const { unitId, clientId, downPaymentPct, installments } = await req.json();
 
-    const body = await req.json();
-    const { unitId, clientId, downPaymentPct, installments } = body as {
-      unitId: string;
-      clientId: string;
-      downPaymentPct: number; // 0..100
-      installments: number;   // >=1
-    };
-
-    if (!unitId || !clientId || downPaymentPct == null || installments == null) {
+    if (!unitId || !clientId) {
       return NextResponse.json({ error: 'missing_params' }, { status: 400 });
     }
 
-    // Trae unidad con proyecto (para currency) y disponibilidad
     const unit = await prisma.unit.findUnique({
       where: { id: unitId },
       select: {
         id: true,
         price: true,
         available: true,
-        project: { select: { id: true, currency: true } },
+        project: { select: { currency: true } }, // 👈 currency viene del proyecto
       },
     });
 
@@ -46,7 +37,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'unit_not_available' }, { status: 400 });
     }
 
-    // Verifica cliente
     const client = await prisma.client.findUnique({
       where: { id: clientId },
       select: { id: true },
@@ -56,40 +46,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'client_not_found' }, { status: 404 });
     }
 
-    // Cálculos
-    const amountToFinance = Math.round((unit.price * (100 - downPaymentPct)) / 100);
-    const installmentValue = Math.round(amountToFinance / installments);
-    const currency = unit.project.currency;
+    const dp = Number(downPaymentPct ?? 0);
+    const inst = Number(installments ?? 1);
+    if (isNaN(dp) || isNaN(inst) || inst <= 0) {
+      return NextResponse.json({ error: 'invalid_financing' }, { status: 400 });
+    }
 
-    // CREATE usando relaciones anidadas (connect) en vez de unitId/clientId
+    const installmentValue = Math.round((unit.price * (100 - dp)) / 100 / inst);
+    const currency = unit.project.currency; // 👈 desde Project
+
     const quote = await prisma.quote.create({
       data: {
-        // Si tu modelo tiene un campo "number" autogenerado en middleware/trigger, omite esto.
-        // Si NO lo autogeneras y es requerido, crea uno aquí:
-        // number: `Q-${Date.now()}`,
-        unit: { connect: { id: unit.id } },
-        client: { connect: { id: client.id } },
-        // Si tu modelo tiene broker y quieres asociar:
-        // broker: session?.user?.id ? { connect: { id: session.user.id } } : undefined,
-        downPaymentPct,
-        installments,
+        unitId: unit.id,
+        clientId: client.id,
+        downPaymentPct: dp,
+        installments: inst,
         installmentValue,
         currency,
       },
-      select: { id: true, createdAt: true },
+      include: {
+        client: true,
+        unit: { include: { project: true } },
+        receipt: true, // por si existiera luego
+      },
     });
 
-    return NextResponse.json(
-      {
-        ok: true,
-        quoteId: quote.id,
-        currency,
-        installmentValue,
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ ok: true, quote }, { status: 201 });
   } catch (err) {
-    console.error('[quote:create] error', err);
-    return NextResponse.json({ error: 'internal_error' }, { status: 500 });
+    console.error('quote/create error', err);
+    return NextResponse.json({ error: 'server_error' }, { status: 500 });
   }
 }
