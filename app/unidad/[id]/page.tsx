@@ -105,6 +105,11 @@ export default function UnitPage({ params }: { params: { id: string } }) {
       alert("Primero crea la cotización y selecciona el archivo de comprobante.");
       return;
     }
+    if (!unit) {
+      alert("La unidad ya no está disponible en memoria. Vuelve al proyecto e inténtalo de nuevo.");
+      return;
+    }
+
     try {
       const content = await receipt.arrayBuffer();
       const base64 = arrayBufferToBase64(content);
