@@ -17,7 +17,7 @@ export default async function QuotePrint({ params }: { params: { id: string } })
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
         <div>
           <h3>Cliente</h3>
-          <div><b>{client.firstName} {client.lastName}</b></div>
+          <div><b>{client.name}</b></div>
           <div>{client.email}</div>
           <div>{client.phone}</div>
         </div>
