@@ -7,42 +7,66 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/*
+ NOTA: Usamos String en vez de enums nativos (SQLite).
+ Valores esperados:
+ - role: "ADMIN" | "BROKER"
+ - currency: "USD" | "UF"
+ - status: "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
+*/
+
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
-  role         String   @default("BROKER")   // "ADMIN" | "BROKER"
+  role         String   @default("BROKER") // "ADMIN" | "BROKER"
   quotes       Quote[]
+  clients      Client[]
   createdAt    DateTime @default(now())
 }
 
 model Project {
-  id           String   @id @default(cuid())
-  name         String
-  coverUrl     String?
-  address      String
-  city         String
-  country      String
+  id          String   @id @default(cuid())
+  name        String
+  coverUrl    String?
+  address     String
+  city        String
+  country     String
   deliveryDate DateTime
-  units        Unit[]
-  createdAt    DateTime @default(now())
+  units       Unit[]
+  createdAt   DateTime @default(now())
 }
 
 model Unit {
-  id        String   @id @default(cuid())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId String
-  code      String
-  typology  String
-  m2        Int
-  bedrooms  Int
-  bathrooms Int
-  price     Int
-  currency  String                      // "USD" | "UF"
-  status    String   @default("AVAILABLE")  // "AVAILABLE" | "RESERVED_PENDING" | "RESERVED_CONFIRMED" | "SOLD"
-  quotes    Quote[]
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  String
+  code       String
+  typology   String
+  m2         Int
+  bedrooms   Int
+  bathrooms  Int
+  price      Int
+  currency   String   // "USD" | "UF"
+  status     String   @default("AVAILABLE") // ver comentario arriba
+  quotes     Quote[]
+  createdAt  DateTime @default(now())
+}
+
+model Client {
+  id         String   @id @default(cuid())
+  firstName  String
+  lastName   String
+  email      String
+  phone      String
+  broker     User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
+  brokerId   String
+  quotes     Quote[]
+  createdAt  DateTime @default(now())
+
+  @@index([brokerId])
+  @@index([email])
 }
 
 model Quote {
@@ -51,6 +75,9 @@ model Quote {
   unitId                String
   broker                User     @relation(fields: [brokerId], references: [id], onDelete: Cascade)
   brokerId              String
+  client                Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId              String
+
   downPaymentPct        Int
   installments          Int
   calculatedDownPayment Int
@@ -58,6 +85,9 @@ model Quote {
   pdfUrl                String?
   receipt               Receipt?
   createdAt             DateTime @default(now())
+
+  @@index([brokerId])
+  @@index([clientId])
 }
 
 model Receipt {
