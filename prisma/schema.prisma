@@ -66,6 +66,9 @@ model Unit {
 
 model Quote {
   id               String    @id @default(cuid())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  number           String    @unique
   unitId           String
   unit             Unit      @relation(fields: [unitId], references: [id])
   clientId         String
@@ -74,18 +77,15 @@ model Quote {
   installments     Int
   installmentValue Int
   currency         String
-  receipt          Receipt?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
 
-  @@index([unitId])
-  @@index([clientId])
+  receiptId String?
+  receipt   Receipt? @relation(fields: [receiptId], references: [id])
 }
 
 model Receipt {
-  id        String   @id @default(cuid())
-  quoteId   String   @unique
-  quote     Quote    @relation(fields: [quoteId], references: [id])
-  url       String
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  url        String
+  uploadedAt DateTime @default(now())
+  quoteId    String   @unique
+  quote      Quote    @relation(fields: [quoteId], references: [id])
 }
