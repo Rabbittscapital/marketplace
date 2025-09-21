@@ -30,52 +30,40 @@ export async function POST(req: Request) {
     const installments = Number(body.installments ?? 0);
     const installmentValue = Number(body.installmentValue ?? 0);
 
-    if (!unitId) {
-      return NextResponse.json({ error: 'unitId_required' }, { status: 400 });
-    }
-    if (!clientId) {
-      return NextResponse.json({ error: 'clientId_required' }, { status: 400 });
-    }
+    if (!unitId) return NextResponse.json({ error: 'unitId_required' }, { status: 400 });
+    if (!clientId) return NextResponse.json({ error: 'clientId_required' }, { status: 400 });
 
     // Traer la unidad con el proyecto (para currency) y validar disponibilidad
     const unit = await prisma.unit.findUnique({
       where: { id: unitId },
       include: { project: true },
     });
-
-    if (!unit) {
-      return NextResponse.json({ error: 'unit_not_found' }, { status: 404 });
-    }
-
-    // En este modelo usamos "available" (boolean) en vez de "status"
+    if (!unit) return NextResponse.json({ error: 'unit_not_found' }, { status: 404 });
     if (!unit.available) {
-      return NextResponse.json(
-        { error: 'unit_not_available' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'unit_not_available' }, { status: 400 });
     }
 
     // Moneda desde el proyecto
     const currency = unit.project?.currency ?? 'USD';
 
-    // Crear quote usando relaciones (connect), NO unitId/clientId directos
+    // Generar número único para la cotización (si el schema lo exige)
+    const number = `Q-${Date.now()}`;
+
+    // Crear quote usando relaciones (connect)
     const quote = await prisma.quote.create({
       data: {
+        number,                // ← requerido por tu schema
         downPaymentPct: dp,
         installments,
         installmentValue,
         currency,
-        unit: { connect: { id: unit.id } },
+        unit:   { connect: { id: unit.id } },
         client: { connect: { id: clientId } },
-        // Si tu schema requiere "number" (único) sin default,
-        // descomenta y usa un generador simple:
-        // number: `Q-${Date.now()}`,
       },
       include: {
         unit: { include: { project: true } },
         client: true,
-        // Si tu modelo tiene relación opcional a Receipt:
-        // receipt: true,
+        // receipt: true, // si existe en tu schema
       },
     });
 
