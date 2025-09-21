@@ -5,9 +5,8 @@ export default function Home() {
       <p>Tu plataforma está funcionando correctamente en Vercel.</p>
 
       <div style={{marginTop:24,display:"flex",gap:12,flexWrap:"wrap"}}>
-        <a className="btn" href="/login">Iniciar sesión</a>
         <a className="btn" href="/proyectos">Ver proyectos</a>
-        <a className="btn secondary" href="/dashboard">Panel (requiere login)</a>
+        <a className="btn secondary" href="/dashboard">Dashboard (demo)</a>
       </div>
 
       <style jsx>{`
